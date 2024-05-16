@@ -1,0 +1,11 @@
+# hosts.yaml
+---
+sw1:
+  hostname: 172.16.10.11
+  groups:
+    - cisco_device
+
+R1:
+  hostname: 172.16.10.12
+  groups:
+    - cisco_device

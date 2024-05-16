@@ -1,0 +1,4 @@
+#groups.yaml
+---
+cisco_device:
+  platform: cisco_ios
