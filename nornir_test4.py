@@ -3,9 +3,7 @@ from nornir_utils.plugins.functions import print_result
 
 
 def say_hello(task):
-    return (
-        f"My Task Works! Yaay {task.host} - {task.host.groups} - {task.host.hostname}"
-    )
+    return f"Hello, {task.host} - {task.host.groups} - {task.host.hostname}"
 
 
 nr = InitNornir(config_file="config.yaml")
