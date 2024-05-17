@@ -3,9 +3,9 @@
 sw1:
   hostname: 172.16.10.11
   groups:
-    - cisco_device
+    - cisco_switch
 
 R1:
   hostname: 172.16.10.12
   groups:
-    - cisco_device
+    - cisco_router
