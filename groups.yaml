@@ -1,4 +1,4 @@
-#groups.yaml
+# groups.yaml
 ---
 cisco_switch:
   platform: cisco_ios
