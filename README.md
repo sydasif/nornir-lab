@@ -117,6 +117,7 @@ password: cisco
 Let's look at a simple example to understand how our first Nornir script works, using the inventory examples we discussed before (with Cisco devices).
 
 ```python
+# nornir hello script
 from nornir import InitNornir
 
 def say_hello(task):
@@ -153,6 +154,7 @@ pip install nornir_utils
 ```
 
 ```python
+# nornir print script
 from nornir import InitNornir
 from nornir_utils.plugins.functions import print_result
 
@@ -203,6 +205,7 @@ The `task.host` object allows us to access various parameters of the host on whi
 By using `task.host` along with its attributes, we can dynamically insert each device's specific information into our task's return message.
 
 ```python
+# nornir access host script
 from nornir import InitNornir
 from nornir_utils.plugins.functions import print_result
 
@@ -234,6 +237,7 @@ This script shows how to use `task.host` to access and display details about eac
 Here's another example of how you can run tasks on specific devices.
 
 ```python
+# nornir filter script
 from nornir import InitNornir
 from nornir_utils.plugins.functions import print_result
 
@@ -250,3 +254,129 @@ print_result(result)
 ```
 
 In this script, we're using the `filter` method to narrow down the devices based on their hostname. Specifically, we're filtering for devices with the hostname "172.16.10.11", which corresponds to switchs in our inventory. Then, we run the `say_hello` task only on these filtered devices. Finally, we print the results using the `print_result` function.
+
+## The `nornir_netmiko` Plug-in
+
+Now, we've reached the really exciting part where we can actually execute commands on devices and see the output. You might think, like I did when I was just getting started, "Alright, I'll just create a new function, import Netmiko's ConnectHandler, and get on with it, right?"
+
+But here’s a pleasant surprise: the awesome teams behind Nornir and Netmiko have already done a lot of the heavy lifting for us. They've created plug-ins that we can easily import. To get the netmiko plug-in, all you need to do is run `pip install nornir_netmiko`. This simple command fetches and installs everything you need to start sending commands to your network devices through your Nornir scripts.
+
+```bash
+pip install nornir_netmiko
+```
+
+```python
+# nornir show cmd script
+from nornir import InitNornir
+from nornir_netmiko.tasks import netmiko_send_command
+from nornir_utils.plugins.functions import print_result
+
+
+nr = InitNornir(config_file="config.yaml")
+
+results = nr.run(
+    task=netmiko_send_command, command_string="show ip interface brief | excl down"
+)
+print_result(results)
+```
+
+In this script, we're leveraging the nornir_netmiko plugin, particularly the `netmiko_send_command` function, to execute commands on network devices. After initializing Nornir, we call `nr.run`, passing in `netmiko_send_command` as the task. We specify the command we want to run on our devices with `command_string='show ip interface brief | excl down'`.
+
+```bash
+(.venv) zolo@u22s:~/nornir-lab$ python nornir_netmiko_show.py 
+netmiko_send_command************************************************************
+* R1 ** changed : False ********************************************************
+vvvv netmiko_send_command ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+Interface                  IP-Address      OK? Method Status                Protocol
+FastEthernet0/0            172.16.10.12    YES NVRAM  up                    up      
+^^^^ END netmiko_send_command ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* sw1 ** changed : False *******************************************************
+vvvv netmiko_send_command ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+Interface              IP-Address      OK? Method Status                Protocol
+GigabitEthernet0/0     unassigned      YES unset  up                    up      
+GigabitEthernet3/3     unassigned      YES unset  up                    up      
+Vlan1                  172.16.10.11    YES NVRAM  up                    up      
+
+^^^^ END netmiko_send_command ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+### Configuring Devices with Nornir and Netmiko
+
+The `netmiko_send_config` function is utilized to push configuration commands to devices, specifically targeting router devices with `hostname="172.16.10.12"`.
+
+After filtering for these devices, we execute `netmiko_send_config` to send configuration commands. The output marked `changed : True` indicates that the configuration was successfully applied, reflecting changes made on the devices.
+
+```python
+# nornir config cmd script
+from nornir import InitNornir
+from nornir_netmiko.tasks import netmiko_send_config
+from nornir_utils.plugins.functions import print_result
+
+
+nr = InitNornir(config_file="config.yaml")
+nr = nr.filter(hostname="172.16.10.12")
+results = nr.run(task=netmiko_send_config, config_commands=["ntp server 1.1.1.1"])
+print_result(results)
+```
+
+```bash
+(.venv) zolo@u22s:~/nornir-lab$ python nornir_netmiko_conf.py
+netmiko_send_config*************************************************************
+* R1 ** changed : True *********************************************************
+vvvv netmiko_send_config ** changed : True vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+configure terminal
+Enter configuration commands, one per line.  End with CNTL/Z.
+R1(config)#ntp server 1.1.1.1
+R1(config)#end
+R1#
+^^^^ END netmiko_send_config ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+### Modified Script and Inventory 'data'
+
+I have made a slight change to the script to demonstrate a more dynamic feature of Nornir: accessing host-specific data within a task function for customized configurations across devices.
+
+In the updated `hosts.yaml` file, you'll notice an additional data section under `R1`. This section allows us to define custom data applicable to devices. Here, we've specified an NTP server address (1.1.1.1) under data, making it accessible to devices associated with this router.
+
+```python
+from nornir import InitNornir
+from nornir_netmiko.tasks import netmiko_send_config
+from nornir_utils.plugins.functions import print_result
+
+def set_ntp(task):
+    ntp_server = task.host["ntp"]
+    task.run(task=netmiko_send_config, config_commands=[f"ntp server {ntp_server}"])
+
+nr = InitNornir(config_file="config.yaml")
+nr = nr.filter(hostname="172.16.10.12")
+
+results = nr.run(task=set_ntp)
+print_result(results)
+```
+
+The function `set_ntp` fetches the NTP server address using `task.host['ntp']`, dynamically inserting it into the configuration command. This method ensures that the NTP server setting applied to each device is retrieved from the inventory, allowing for centralized management of device configurations.
+
+```bash
+(.venv) zolo@u22s:~/nornir-lab$ python nornir_netmiko_data.py 
+set_ntp*************************************************************************
+* R1 ** changed : True *********************************************************
+vvvv set_ntp ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+---- netmiko_send_config ** changed : True ------------------------------------- INFO
+configure terminal
+Enter configuration commands, one per line.  End with CNTL/Z.
+R1(config)#ntp server 1.1.1.1
+R1(config)#end
+R1#
+^^^^ END set_ntp ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+In this example, you would have seen two different ways to run tasks: `task.run` and `nr.run`. Here’s a brief explanation of the difference between the two:
+
+- **task.run**: This is used within a task function to execute another task. Think of it as calling a sub-task within your main task. When you use `task.run`, you're essentially saying, "While performing this task, go ahead and run these additional tasks as part of it."
+- **nr.run**: On the other hand, `nr.run` is used to kick off tasks at the top level. This is the method you call when you want to start your automation process and execute tasks across your inventory of devices.
+
+In summary, `nr.run` is used to initiate your automation tasks on your network devices, while `task.run` allows you to organize and modularize your tasks by calling other tasks within a task.
+
+## Conclusion
+
+Nornir is a powerful tool for network automation, providing flexibility through its integration with Python. By leveraging plugins like nornir_netmiko and nornir_utils, you can efficiently manage and configure network devices. This guide has shown you how to set up Nornir, create basic and advanced scripts, and use host-specific data for dynamic configurations. With Nornir, network automation becomes more manageable, scalable, and tailored to your specific needs.
