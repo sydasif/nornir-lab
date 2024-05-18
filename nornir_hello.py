@@ -1,3 +1,5 @@
+# nornir hello script
+
 from nornir import InitNornir
 
 
