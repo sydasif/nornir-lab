@@ -9,3 +9,5 @@ R1:
   hostname: 172.16.10.12
   groups:
     - cisco_router
+  data:
+    ntp: 1.1.1.1
