@@ -383,6 +383,166 @@ In this example, you would have seen two different ways to run tasks: `task.run`
 
 In summary, `nr.run` is used to initiate your automation tasks on your network devices, while `task.run` allows you to organize and modularize your tasks by calling other tasks within a task.
 
-## Summary
+## Integrating Python NAPALM with Nornir
 
-Nornir is a powerful tool for network automation, providing flexibility through its integration with Python. By leveraging plugins like nornir_netmiko and nornir_utils, you can efficiently manage and configure network devices. This guide has shown you how to set up Nornir, create basic and advanced scripts, and use host-specific data for dynamic configurations. With Nornir, network automation becomes more manageable, scalable, and tailored to your specific needs.
+In this section, we will extend our network automation capabilities by integrating NAPALM (Network Automation and Programmability Abstraction Layer with Multivendor support) with Nornir. NAPALM provides a common API to interact with different network devices, supporting several network operating systems like IOS, Junos, and EOS.
+
+#### Installing NAPALM
+
+First, we need to install NAPALM. You can install it using pip:
+
+```bash
+pip install napalm
+```
+
+Additionally, we need to install the Nornir NAPALM plugin:
+
+```bash
+pip install nornir_napalm
+```
+
+#### Using NAPALM with Nornir
+
+Let's begin with a basic example of using NAPALM to retrieve data from our network devices. We'll use NAPALM to get the interfaces' IP addresses.
+
+```python
+# nornir napalm get interfaces ip script
+from nornir import InitNornir
+from nornir_napalm.tasks import napalm_get
+from nornir_utils.plugins.functions import print_result
+
+nr = InitNornir(config_file="config.yaml")
+
+results = nr.run(
+    task=napalm_get, getters=["interfaces_ip"]
+)
+print_result(results)
+```
+
+In this script, we initialize Nornir and then run the `napalm_get` task with the getter `interfaces_ip` to retrieve the IP addresses of the interfaces.
+
+```bash
+(.venv) zolo@u22s:~/nornir-lab$ python nornir_napalm_int.py
+napalm_get**********************************************************************
+* R1 ** changed : False ********************************************************
+vvvv napalm_get ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+{ 'interfaces_ip': { 'FastEthernet0/0': { 'ipv4': { '172.16.10.12': { 'prefix_length': 24}}}}}
+^^^^ END napalm_get ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* sw1 ** changed : False *******************************************************
+vvvv napalm_get ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+{'interfaces_ip': {'Vlan1': {'ipv4': {'172.16.10.11': {'prefix_length': 24}}}}}
+^^^^ END napalm_get ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+#### Configuring Devices with NAPALM
+
+We can also use NAPALM to configure devices. The following script demonstrates how to use the `napalm_configure` task to push configuration changes to devices.
+
+```python
+# nornir napalm configure script
+from nornir import InitNornir
+from nornir_napalm.tasks import napalm_configure
+from nornir_utils.plugins.functions import print_result
+
+nr = InitNornir(config_file="config.yaml")
+
+def configure_ntp(task):
+    ntp_config = """
+    ntp server 1.1.1.1
+    """
+    task.run(task=napalm_configure, configuration=ntp_config)
+
+results = nr.run(task=configure_ntp)
+print_result(results)
+```
+
+In this script, we define a `configure_ntp` function that uses `napalm_configure` to apply an NTP configuration to the devices. We then run this task across our inventory.
+
+```bash
+(.venv) zolo@u22s:~/nornir-lab$ python nornir_napalm_configure.py
+configure_ntp*******************************************************************
+* R1 ** changed : True *********************************************************
+vvvv configure_ntp ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+---- napalm_configure ** changed : True ---------------------------------------- INFO
++    ntp server 1.1.1.1
+^^^^ END configure_ntp ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* sw1 ** changed : True ********************************************************
+vvvv configure_ntp ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+---- napalm_configure ** changed : True ---------------------------------------- INFO
++    ntp server 1.1.1.1
+^^^^ END configure_ntp ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+#### Retrieving Device Facts with NAPALM
+
+Let's look at another example where we retrieve basic device facts using NAPALM. 
+
+```python
+# nornir napalm get facts script
+from nornir import InitNornir
+from nornir_napalm.plugins.tasks import napalm_get
+from nornir_utils.plugins.functions import print_result
+
+
+def get_facts(task):
+    task.run(task=napalm_get, getters=["facts"])
+
+
+nr = InitNornir(config_file="config.yaml")
+result = nr.run(task=get_facts)
+print_result(result)
+```
+
+In this script, the napalm_get task is used with the facts getter to retrieve basic information about the devices, such as vendor, model, serial number, and uptime.
+
+```bash
+(.venv) zolo@u22s:~/nornir-lab$ python nornir_napalm_get.py 
+get_facts***********************************************************************
+* R1 ** changed : False ********************************************************
+vvvv get_facts ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+---- napalm_get ** changed : False --------------------------------------------- INFO
+{ 'facts': { 'fqdn': 'R1.test.lab',
+             'hostname': 'R1',
+             'interface_list': ['FastEthernet0/0', 'FastEthernet0/1'],
+             'model': '3725',
+             'os_version': '3700 Software (C3725-ADVENTERPRISEK9-M), Version '
+                           '12.4(15)T14, RELEASE SOFTWARE (fc2)',
+             'serial_number': 'FTX0945W0MY',
+             'uptime': 2040.0,
+             'vendor': 'Cisco'}}
+^^^^ END get_facts ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* sw1 ** changed : False *******************************************************
+vvvv get_facts ** changed : False vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv INFO
+---- napalm_get ** changed : False --------------------------------------------- INFO
+{ 'facts': { 'fqdn': 'SW1.test.lab',
+             'hostname': 'SW1',
+             'interface_list': [ 'GigabitEthernet0/0',
+                                 'GigabitEthernet0/1',
+                                 'GigabitEthernet0/2',
+                                 'GigabitEthernet0/3',
+                                 'GigabitEthernet1/0',
+                                 'GigabitEthernet1/1',
+                                 'GigabitEthernet1/2',
+                                 'GigabitEthernet1/3',
+                                 'GigabitEthernet2/0',
+                                 'GigabitEthernet2/1',
+                                 'GigabitEthernet2/2',
+                                 'GigabitEthernet2/3',
+                                 'GigabitEthernet3/0',
+                                 'GigabitEthernet3/1',
+                                 'GigabitEthernet3/2',
+                                 'GigabitEthernet3/3',
+                                 'Vlan1'],
+             'model': 'IOSv',
+             'os_version': 'vios_l2 Software (vios_l2-ADVENTERPRISEK9-M), '
+                           'Experimental Version 15.2(20200924:215240) '
+                           '[sweickge-sep24-2020-l2iol-release 135]',
+             'serial_number': '9BPOBFRTOEY',
+             'uptime': 3960.0,
+             'vendor': 'Cisco'}}
+^^^^ END get_facts ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+### Summary
+
+Nornir, integrated with NAPALM and supported by plugins like nornir_netmiko and nornir_utils, offers a robust solution for network automation tasks. This combination enhances automation capabilities, allowing for efficient retrieval and configuration of network device data. With NAPALM's multivendor support and common API, along with Nornir's powerful task management, network automation becomes more manageable, scalable, and tailored to your specific needs. This guide has demonstrated how to set up Nornir, create basic and advanced scripts, utilize host-specific data for dynamic configurations, and leverage plugins to efficiently manage and configure network devices.
