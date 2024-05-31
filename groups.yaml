@@ -1,9 +1,9 @@
 # groups.yaml
-# netmiko:- platform: cisco_ios
-# napalm:- platform: ios
 ---
 cisco_switch:
-  platform: ios
+  platform: cisco_ios # netmiko
+  platform: ios # for napalm
 
 cisco_router:
-  platform: ios
+  platform: cisco_ios # netmiko
+  platform: ios # for napalm
