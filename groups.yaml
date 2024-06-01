@@ -2,8 +2,8 @@
 ---
 cisco_switch:
   platform: cisco_ios # netmiko
-  platform: ios # for napalm
+  # platform: ios # for napalm
 
 cisco_router:
   platform: cisco_ios # netmiko
-  platform: ios # for napalm
+  # platform: ios # for napalm
