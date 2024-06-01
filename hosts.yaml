@@ -1,13 +1,23 @@
 # hosts.yaml
 ---
-sw1:
-  hostname: 172.16.10.11
-  groups:
-    - cisco_switch
-
-R1:
+r1:
   hostname: 172.16.10.12
   groups:
     - cisco_router
   data:
     ntp: 1.1.1.1
+
+core-sw:
+  hostname: 172.16.10.11
+  groups:
+    - cisco_switch
+
+access1:
+  hostname: 172.16.10.13
+  groups:
+    - cisco_switch
+
+access2:
+  hostname: 172.16.10.14
+  groups:
+    - cisco_switch
